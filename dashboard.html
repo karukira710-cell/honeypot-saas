@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍯 Honeypot Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d0f14; color: #cdd6f4; font-family: 'Courier New', monospace; }
+
+  .header {
+    background: #1e2230; padding: 16px 24px;
+    border-bottom: 1px solid #2a2f42;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header h1 { color: #89b4fa; font-size: 20px; }
+  .header .status { color: #a6e3a1; font-size: 12px; }
+
+  .stats-bar {
+    display: flex; gap: 12px; padding: 16px 24px;
+    background: #13161e; border-bottom: 1px solid #2a2f42;
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    background: #1e2230; border: 1px solid #2a2f42;
+    border-radius: 8px; padding: 12px 20px; min-width: 140px;
+  }
+  .stat-card .label { color: #6e738d; font-size: 11px; margin-bottom: 4px; }
+  .stat-card .value { color: #89b4fa; font-size: 24px; font-weight: bold; }
+
+  .main { display: flex; gap: 16px; padding: 16px 24px; }
+
+  .attacks-panel { flex: 1; }
+  .side-panel { width: 320px; }
+
+  .panel {
+    background: #1e2230; border: 1px solid #2a2f42;
+    border-radius: 8px; overflow: hidden; margin-bottom: 16px;
+  }
+  .panel-header {
+    background: #13161e; padding: 10px 16px;
+    border-bottom: 1px solid #2a2f42;
+    font-size: 12px; font-weight: bold; color: #6e738d;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .panel-header span { color: #89b4fa; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    background: #13161e; padding: 8px 12px;
+    text-align: left; color: #6e738d; font-weight: bold;
+    border-bottom: 1px solid #2a2f42;
+  }
+  td { padding: 8px 12px; border-bottom: 1px solid #1a1e2a; }
+  tr:hover { background: #13161e; }
+
+  .badge {
+    padding: 2px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: bold;
+  }
+  .badge-HTTP    { background: #1e3a5f; color: #89b4fa; }
+  .badge-SSH     { background: #1e3a2a; color: #a6e3a1; }
+  .badge-FTP     { background: #3a2a1e; color: #fab387; }
+  .badge-TELNET  { background: #3a3a1e; color: #f9e2af; }
+  .badge-SMTP    { background: #2a1e3a; color: #cba6f7; }
+  .badge-MYSQL   { background: #1e3a3a; color: #94e2d5; }
+
+  .threat-CRITICAL   { color: #f38ba8; font-weight: bold; }
+  .threat-HIGH       { color: #fab387; }
+  .threat-SUSPICIOUS { color: #f9e2af; }
+  .threat-SAFE       { color: #a6e3a1; }
+
+  .ip { color: #f9e2af; }
+  .geo { color: #94e2d5; font-size: 11px; }
+  .ts  { color: #6e738d; font-size: 11px; }
+
+  .top-ip {
+    display: flex; justify-content: space-between;
+    padding: 8px 16px; border-bottom: 1px solid #1a1e2a;
+    font-size: 12px;
+  }
+  .top-ip:hover { background: #13161e; }
+  .top-ip .count {
+    background: #f38ba8; color: #0d0f14;
+    padding: 1px 8px; border-radius: 10px;
+    font-weight: bold; font-size: 11px;
+  }
+
+  .svc-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 16px; border-bottom: 1px solid #1a1e2a; font-size: 12px;
+  }
+  .svc-bar-wrap { flex: 1; margin: 0 12px; background: #13161e; border-radius: 4px; height: 6px; }
+  .svc-bar { height: 6px; border-radius: 4px; }
+
+  .refresh-btn {
+    background: #89b4fa; color: #0d0f14; border: none;
+    padding: 4px 12px; border-radius: 4px; cursor: pointer;
+    font-family: 'Courier New'; font-size: 11px; font-weight: bold;
+  }
+  .refresh-btn:hover { background: #74c7ec; }
+
+  .live-dot {
+    width: 8px; height: 8px; background: #a6e3a1;
+    border-radius: 50%; display: inline-block; margin-right: 6px;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .empty { color: #6e738d; text-align: center; padding: 30px; font-size: 13px; }
+  #last-updated { color: #6e738d; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🍯 Honeypot Control Center</h1>
+  <div>
+    <span class="live-dot"></span>
+    <span class="status">LIVE</span>
+    &nbsp;&nbsp;
+    <span id="last-updated">Loading...</span>
+  </div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-card">
+    <div class="label">⚡ Total Attacks</div>
+    <div class="value" id="total">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">🌐 Unique IPs</div>
+    <div class="value" id="unique">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">🔴 Critical</div>
+    <div class="value" style="color:#f38ba8" id="critical">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">🟠 High</div>
+    <div class="value" style="color:#fab387" id="high">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">🟡 Suspicious</div>
+    <div class="value" style="color:#f9e2af" id="suspicious">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">🟢 Safe</div>
+    <div class="value" style="color:#a6e3a1" id="safe">—</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Left: Attacks Table -->
+  <div class="attacks-panel">
+    <div class="panel">
+      <div class="panel-header">
+        ⚡ LIVE ATTACKS
+        <button class="refresh-btn" onclick="loadData()">🔄 Refresh</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Service</th>
+            <th>IP</th>
+            <th>Location</th>
+            <th>User/Path</th>
+            <th>Threat</th>
+          </tr>
+        </thead>
+        <tbody id="attacks-body">
+          <tr><td colspan="6" class="empty">Loading attacks...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Right: Side Panel -->
+  <div class="side-panel">
+
+    <!-- Top Attackers -->
+    <div class="panel">
+      <div class="panel-header">🎯 TOP ATTACKERS</div>
+      <div id="top-ips">
+        <div class="empty">Loading...</div>
+      </div>
+    </div>
+
+    <!-- By Service -->
+    <div class="panel">
+      <div class="panel-header">📊 BY SERVICE</div>
+      <div id="by-service">
+        <div class="empty">Loading...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = "http://127.0.0.1:8000";
+
+const SVC_COLORS = {
+  HTTP: "#89b4fa", SSH: "#a6e3a1", FTP: "#fab387",
+  TELNET: "#f9e2af", SMTP: "#cba6f7", MYSQL: "#94e2d5"
+};
+
+async function loadData() {
+  try {
+    const [attacksRes, statsRes] = await Promise.all([
+      fetch(`${API}/attacks`),
+      fetch(`${API}/stats`)
+    ]);
+    const attacksData = await attacksRes.json();
+    const statsData   = await statsRes.json();
+
+    updateStats(statsData);
+    updateTable(attacksData.attacks || []);
+    updateTopIPs(statsData.top_attackers || []);
+    updateServices(statsData.by_service || {});
+
+    document.getElementById("last-updated").textContent =
+      "Updated: " + new Date().toLocaleTimeString();
+
+  } catch(e) {
+    console.error("API Error:", e);
+    document.getElementById("last-updated").textContent = "❌ API not reachable";
+  }
+}
+
+function updateStats(stats) {
+  document.getElementById("total").textContent    = stats.total || 0;
+  document.getElementById("unique").textContent   = stats.unique_ips || 0;
+  const threats = stats.by_threat || {};
+  document.getElementById("critical").textContent   = threats.CRITICAL   || 0;
+  document.getElementById("high").textContent       = threats.HIGH       || 0;
+  document.getElementById("suspicious").textContent = threats.SUSPICIOUS || 0;
+  document.getElementById("safe").textContent       = threats.SAFE       || 0;
+}
+
+function updateTable(attacks) {
+  const tbody = document.getElementById("attacks-body");
+  if (!attacks.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No attacks yet — Start honeypot services!</td></tr>';
+    return;
+  }
+
+  // Latest 50 dikhao, newest first
+  const latest = [...attacks].reverse().slice(0, 50);
+  tbody.innerHTML = latest.map(e => {
+    const ts      = (e.timestamp || e.received_at || "").substring(11, 19);
+    const svc     = e.service || "?";
+    const ip      = e.ip || "?";
+    const geo     = e.geo || {};
+    const city    = geo.city || "";
+    const country = geo.country_iso || geo.country || "??";
+    const loc     = city ? `${city}, ${country}` : country;
+    const user    = e.username || e.path || "";
+    const label   = e.ml_label || "SAFE";
+    const score   = e.ml_score || 0;
+    const emoji   = {CRITICAL:"🔴",HIGH:"🟠",SUSPICIOUS:"🟡",SAFE:"🟢"}[label] || "⚪";
+
+    return `<tr>
+      <td class="ts">${ts}</td>
+      <td><span class="badge badge-${svc}">${svc}</span></td>
+      <td class="ip">${ip}</td>
+      <td class="geo">${loc}</td>
+      <td style="color:#cdd6f4;font-size:11px">${user.substring(0,25)}</td>
+      <td class="threat-${label}">${emoji} ${score}</td>
+    </tr>`;
+  }).join("");
+}
+
+function updateTopIPs(topIPs) {
+  const el = document.getElementById("top-ips");
+  if (!topIPs.length) {
+    el.innerHTML = '<div class="empty">No data yet</div>'; return;
+  }
+  el.innerHTML = topIPs.map(item =>
+    `<div class="top-ip">
+      <span class="ip">${item.ip}</span>
+      <span class="count">${item.count}</span>
+    </div>`
+  ).join("");
+}
+
+function updateServices(byService) {
+  const el = document.getElementById("by-service");
+  if (!Object.keys(byService).length) {
+    el.innerHTML = '<div class="empty">No data yet</div>'; return;
+  }
+  const max = Math.max(...Object.values(byService));
+  el.innerHTML = Object.entries(byService).map(([svc, count]) => {
+    const color = SVC_COLORS[svc] || "#cdd6f4";
+    const pct   = Math.round((count / max) * 100);
+    return `<div class="svc-row">
+      <span style="color:${color};width:60px">${svc}</span>
+      <div class="svc-bar-wrap">
+        <div class="svc-bar" style="width:${pct}%;background:${color}"></div>
+      </div>
+      <span style="color:${color}">${count}</span>
+    </div>`;
+  }).join("");
+}
+
+// Auto refresh har 5 seconds
+loadData();
+setInterval(loadData, 5000);
+</script>
+</body>
+</html>
