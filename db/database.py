@@ -1,6 +1,12 @@
 from pymongo import MongoClient
 from collections import defaultdict
 import datetime,os
+import certifi
+
+client = MongoClient(
+    MONGO_URL,
+    tlsCAFile=certifi.where()
+)
 
 # ── MongoDB Connection ─────────────────────────────
 MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017/")
