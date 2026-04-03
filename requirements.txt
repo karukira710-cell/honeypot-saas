@@ -1,4 +1,6 @@
 fastapi
-uvicorn
-pymongo
+uvicorn[standard]
+pymongo[srv]
 requests
+dnspython
+motor
