@@ -4,7 +4,11 @@ import datetime,os
 
 # ── MongoDB Connection ─────────────────────────────
 MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017/")
-client = MongoClient(MONGO_URL)
+client = MongoClient(
+    MONGO_URL,
+    tls=True,
+    tlsAllowInvalidCertificates=True
+)
 db     = client["honeypot"]
 events_collection = db["events"]
 
